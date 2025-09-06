@@ -157,11 +157,7 @@ def delete_telemetry(tid):
     return jsonify(msg='Deleted'), 200
 
 
-# bulk upload endpoint
-@app.route('/telemetry/bulk', methods=['POST'])
-@jwt_required()
-def bulk_upload_telemetry():
-# bulk get endpoint
+# Bulk get endpoint
 @app.route('/telemetry/bulk', methods=['GET'])
 @jwt_required()
 def bulk_get_telemetry():
@@ -214,6 +210,9 @@ def bulk_delete_telemetry():
             created_ids.append(telemetry.id)
         db.session.commit()
         return jsonify(created_ids=created_ids, msg='Bulk upload successful'), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(msg=str(e)), 400
 
     ids = request.json.get('ids')
     if not isinstance(ids, list):
@@ -228,14 +227,9 @@ def bulk_delete_telemetry():
                 db.session.delete(telemetry)
         db.session.commit()
         return jsonify(msg='Bulk delete successful'), 200
-
-
     except Exception as e:
         db.session.rollback()
         return jsonify(msg=str(e)), 400
-
-
-
 
 
 # Swagger UI setup
