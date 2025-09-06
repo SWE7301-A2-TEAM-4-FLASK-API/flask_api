@@ -156,14 +156,45 @@ def delete_telemetry(tid):
     db.session.commit()
     return jsonify(msg='Deleted'), 200
 
+
 # bulk upload endpoint
 @app.route('/telemetry/bulk', methods=['POST'])
 @jwt_required()
 def bulk_upload_telemetry():
+# bulk get endpoint
+@app.route('/telemetry/bulk', methods=['GET'])
+@jwt_required()
+def bulk_get_telemetry():
+    claims = get_jwt()
+    role = claims.get('role')
+    ids = request.args.getlist('ids')
+    if not ids:
+        return jsonify(msg='Query parameter "ids" is required'), 400
+    try:
+        ids = [int(tid) for tid in ids]
+    except ValueError:
+        return jsonify(msg='All IDs must be integers'), 400
+    records = Telemetry.query.filter(Telemetry.id.in_(ids)).all()
+    result = []
+    for record in records:
+        data = record.to_dict()
+        if role == 'consumer':
+            filtered = {k: v for k, v in data.items() if k in ['salinity', 'pH', 'id', 'timestamp']}
+            result.append(filtered)
+        else:
+            result.append(data)
+    return jsonify(data=result), 200
+
+# Bulk delete endpoint
+@app.route('/telemetry/bulk', methods=['DELETE'])
+@jwt_required()
+def bulk_delete_telemetry():
+
     claims = get_jwt()
     role = claims.get('role')
     if role != 'admin':
         return jsonify(msg='Insufficient permissions'), 403
+
     data = request.json
     if not isinstance(data, list):
         return jsonify(msg='Payload must be a list of telemetry records'), 400
@@ -183,9 +214,29 @@ def bulk_upload_telemetry():
             created_ids.append(telemetry.id)
         db.session.commit()
         return jsonify(created_ids=created_ids, msg='Bulk upload successful'), 201
+
+    ids = request.json.get('ids')
+    if not isinstance(ids, list):
+        return jsonify(msg='Payload must contain a list of IDs'), 400
+    try:
+        for tid in ids:
+            telemetry = Telemetry.query.get(tid)
+            if telemetry:
+                # Prevent deletes to pre-current quarter records
+                if not is_current_quarter(telemetry.timestamp):
+                    return jsonify(msg=f'Deletes to pre-current quarter records are not allowed (ID: {tid})'), 403
+                db.session.delete(telemetry)
+        db.session.commit()
+        return jsonify(msg='Bulk delete successful'), 200
+
+
     except Exception as e:
         db.session.rollback()
         return jsonify(msg=str(e)), 400
+
+
+
+
 
 # Swagger UI setup
 SWAGGER_URL = '/api/docs'
