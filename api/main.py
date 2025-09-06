@@ -156,6 +156,30 @@ def delete_telemetry(tid):
     db.session.commit()
     return jsonify(msg='Deleted'), 200
 
+# bulk get endpoint
+@app.route('/telemetry/bulk', methods=['GET'])
+@jwt_required()
+def bulk_get_telemetry():
+    claims = get_jwt()
+    role = claims.get('role')
+    ids = request.args.getlist('ids')
+    if not ids:
+        return jsonify(msg='Query parameter "ids" is required'), 400
+    try:
+        ids = [int(tid) for tid in ids]
+    except ValueError:
+        return jsonify(msg='All IDs must be integers'), 400
+    records = Telemetry.query.filter(Telemetry.id.in_(ids)).all()
+    result = []
+    for record in records:
+        data = record.to_dict()
+        if role == 'consumer':
+            filtered = {k: v for k, v in data.items() if k in ['salinity', 'pH', 'id', 'timestamp']}
+            result.append(filtered)
+        else:
+            result.append(data)
+    return jsonify(data=result), 200
+
 # Swagger UI setup
 SWAGGER_URL = '/api/docs'
 API_URL = '/static/swagger.json'
