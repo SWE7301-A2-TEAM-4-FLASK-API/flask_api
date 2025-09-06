@@ -4,6 +4,14 @@
 
 ### Flask API setup
 
+## 2. Ifesinahi Nwankwo Ignatius
+
+### Observation of Data
+### Swagger UI API
+### Prior Record setup
+
+
+
 
 ## 3. Cyril Nwoba
 ### commited parameter based filtering
