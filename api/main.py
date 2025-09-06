@@ -180,6 +180,34 @@ def bulk_get_telemetry():
             result.append(data)
     return jsonify(data=result), 200
 
+# Bulk delete endpoint
+@app.route('/telemetry/bulk', methods=['DELETE'])
+@jwt_required()
+def bulk_delete_telemetry():
+    claims = get_jwt()
+    role = claims.get('role')
+    if role != 'admin':
+        return jsonify(msg='Insufficient permissions'), 403
+    ids = request.json.get('ids')
+    if not isinstance(ids, list):
+        return jsonify(msg='Payload must contain a list of IDs'), 400
+    try:
+        for tid in ids:
+            telemetry = Telemetry.query.get(tid)
+            if telemetry:
+                # Prevent deletes to pre-current quarter records
+                if not is_current_quarter(telemetry.timestamp):
+                    return jsonify(msg=f'Deletes to pre-current quarter records are not allowed (ID: {tid})'), 403
+                db.session.delete(telemetry)
+        db.session.commit()
+        return jsonify(msg='Bulk delete successful'), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(msg=str(e)), 400
+
+
+
+
 # Swagger UI setup
 SWAGGER_URL = '/api/docs'
 API_URL = '/static/swagger.json'
