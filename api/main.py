@@ -65,6 +65,37 @@ def login():
 
 
 
+# bulk upload endpoint
+@app.route('/telemetry/bulk', methods=['POST'])
+@jwt_required()
+def bulk_upload_telemetry():
+    claims = get_jwt()
+    role = claims.get('role')
+    if role != 'admin':
+        return jsonify(msg='Insufficient permissions'), 403
+    data = request.json
+    if not isinstance(data, list):
+        return jsonify(msg='Payload must be a list of telemetry records'), 400
+    created_ids = []
+    try:
+        for entry in data:
+            telemetry = Telemetry(
+                buoy_id=entry['buoy_id'],
+                salinity=entry['salinity'],
+                pH=entry['pH'],
+                pollutants=entry.get('pollutants'),
+                temperature=entry.get('temperature'),
+                location=entry.get('location')
+            )
+            db.session.add(telemetry)
+            db.session.flush()  # Get ID before commit
+            created_ids.append(telemetry.id)
+        db.session.commit()
+        return jsonify(created_ids=created_ids, msg='Bulk upload successful'), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(msg=str(e)), 400
+
 # Swagger UI setup
 SWAGGER_URL = '/api/docs'
 API_URL = '/static/swagger.json'
