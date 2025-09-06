@@ -46,6 +46,38 @@ def register():
 
     return jsonify({'msg': 'User registered successfully'}), 201
 
+# prevent edits to pre-current quarter records
+def is_current_quarter(ts):
+    now = datetime.datetime.utcnow()
+    quarter = (now.month - 1) // 3 + 1
+    start_month = 3 * (quarter - 1) + 1
+    start = datetime.datetime(now.year, start_month, 1)
+    return ts >= start
+
+# Prevent edits to pre-current quarter records update
+@app.route('/telemetry/<int:tid>', methods=['PUT'])
+@jwt_required()
+def update_telemetry(tid):
+    claims = get_jwt()
+    role = claims.get('role')
+    if role != 'admin':
+        return jsonify(msg='Insufficient permissions'), 403
+    telemetry = Telemetry.query.get(tid)
+    if not telemetry:
+        return jsonify(msg='Not found'), 404
+    # Prevent edits to pre-current quarter records
+    if not is_current_quarter(telemetry.timestamp):
+        return jsonify(msg='Edits to pre-current quarter records are not allowed'), 403
+    data = request.json
+    telemetry.buoy_id = data.get('buoy_id', telemetry.buoy_id)
+    telemetry.salinity = data.get('salinity', telemetry.salinity)
+    telemetry.pH = data.get('pH', telemetry.pH)
+    telemetry.pollutants = data.get('pollutants', telemetry.pollutants)
+    telemetry.temperature = data.get('temperature', telemetry.temperature)
+    telemetry.location = data.get('location', telemetry.location)
+    db.session.commit()
+    return jsonify(id=tid, data=telemetry.to_dict())
+
 #LOGIN
 @app.route('/login', methods=['POST'])
 def login():
