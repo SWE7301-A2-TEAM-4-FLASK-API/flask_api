@@ -1,0 +1,230 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Flask API",
+    "version": "1.0.0",
+    "description": "API for telemetry data management"
+  },
+  "paths": {
+    "/register": {
+      "post": {
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User registered successfully" },
+          "400": { "description": "Missing username or password / User already exists" }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "summary": "Login and get JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "JWT token returned" },
+          "400": { "description": "Missing username or password" },
+          "401": { "description": "Invalid username or password" }
+        }
+      }
+    },
+    "/telemetry": {
+      "post": {
+        "summary": "Create telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Telemetry" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Telemetry data created" }
+        }
+      },
+      "get": {
+        "summary": "Get telemetry data for current user",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of telemetry data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Telemetry" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/telemetry/{id}": {
+      "put": {
+        "summary": "Update telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Telemetry" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Telemetry data updated" },
+          "404": { "description": "Telemetry data not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Telemetry data deleted" },
+          "404": { "description": "Telemetry data not found" }
+        }
+      }
+    },
+    "/telemetry/bulk": {
+      "post": {
+        "summary": "Bulk upload telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Telemetry" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Bulk telemetry data created" }
+        }
+      },
+      "get": {
+        "summary": "Bulk get telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of telemetry data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Telemetry" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Bulk update telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Telemetry" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Bulk telemetry data updated" }
+        }
+      },
+      "delete": {
+        "summary": "Bulk delete telemetry data",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" }
+                  },
+                  "required": ["id"]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Bulk telemetry data deleted" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Telemetry": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "buoy_id": { "type": "integer" },
+          "salinity": { "type": "string" },
+          "temperature": { "type": "string" },
+          "pH": { "type": "string" },
+          "pollution_level": { "type": "string" },
+          "dissolved_oxygen": { "type": "string" },
+          "location": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}
