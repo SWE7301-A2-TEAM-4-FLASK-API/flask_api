@@ -1,19 +1,17 @@
 # flask_api
 
-# 1. Nweze Isaiah
+# 1. Nweze Ifeanyi Isaiah
 
 ### Flask API setup
+### JWT Security implemented
 
+### Swagger.json for Open API 
 
 ## 2. Ifesinahi Nwankwo Ignatius
 
 ### Observation of Data
 ### Swagger UI API
-### 
 
-### Swagger.json for Open API 
-
-### JWT Security implemented
 
 # 4. Peter Nduka Ikweagwa
 
