@@ -455,6 +455,9 @@ def register():
     db.session.commit()
 
     return jsonify({'msg': 'User registered successfully'}), 201"""
+# ---------------------------
+# Auth
+# ---------------------------
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
@@ -507,6 +510,10 @@ def login():
     )
     return jsonify({'access_token': access_token}), 201"""
 # filepath: c:\Users\LATITUDE 5430\OneDrive - University of Bolton\Desktop\flask_api\api\main.py
+
+# ---------------------------
+# Auth -- Login
+# ---------------------------
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
