@@ -13,43 +13,47 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "username": { "type": "string" },
-                  "password": { "type": "string" }
-                },
-                "required": ["username", "password"]
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" },
+              "example": {
+                "username": "admin",
+                "password": "secret123",
+                "email": "admin@example.com",
+                "role": "admin"
               }
             }
           }
         },
         "responses": {
           "201": { "description": "User registered successfully" },
-          "400": { "description": "Missing username or password / User already exists" }
+          "400": { "description": "Missing or invalid fields / User already exists" }
         }
       }
     },
     "/login": {
       "post": {
-        "summary": "Login and get JWT token",
+        "summary": "Login and get JWT access token",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "username": { "type": "string" },
-                  "password": { "type": "string" }
-                },
-                "required": ["username", "password"]
+              "schema": { "$ref": "#/components/schemas/AuthLoginRequest" },
+              "example": {
+                "username": "admin",
+                "password": "secret123"
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "JWT token returned" },
+          "201": {
+            "description": "JWT token returned",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokenResponse" },
+                "example": { "access_token": "<JWT>" }
+              }
+            }
+          },
           "400": { "description": "Missing username or password" },
           "401": { "description": "Invalid username or password" }
         }
@@ -57,41 +61,63 @@
     },
     "/telemetry": {
       "post": {
-        "summary": "Create telemetry data",
+        "summary": "Create telemetry record",
+        "description": "Requires role **admin** or **researcher**.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/Telemetry" }
+              "schema": { "$ref": "#/components/schemas/TelemetryCreate" },
+              "example": {
+                "buoy_id": 1,
+                "salinity": 35.2,
+                "pH": 8.1,
+                "temperature": 23.3,
+                "pollutants": "none",
+                "location": "Gulf of Guinea"
+              }
             }
           }
         },
         "responses": {
-          "201": { "description": "Telemetry data created" }
-        }
-      },
-      "get": {
-        "summary": "Get telemetry data for current user",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": {
-            "description": "List of telemetry data",
+          "201": {
+            "description": "Telemetry created",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/Telemetry" }
-                }
+                "schema": { "$ref": "#/components/schemas/TelemetryResponse" }
               }
             }
-          }
+          },
+          "400": { "description": "Validation/database error" },
+          "401": { "description": "Missing/invalid token" },
+          "403": { "description": "Insufficient permissions" }
         }
       }
     },
     "/telemetry/{id}": {
+      "get": {
+        "summary": "Get a telemetry record by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Telemetry record",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TelemetryResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing/invalid token" },
+          "404": { "description": "Not found" }
+        }
+      },
       "put": {
-        "summary": "Update telemetry data",
+        "summary": "Update a telemetry record by ID",
+        "description": "Requires role **admin**. Edits to pre-current-quarter records are blocked.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
@@ -100,65 +126,87 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/Telemetry" }
+              "schema": { "$ref": "#/components/schemas/TelemetryUpdate" },
+              "example": {
+                "salinity": 34.9,
+                "temperature": 22.8,
+                "pollutants": "microplastics",
+                "location": "Atlantic - Station 3"
+              }
             }
           }
         },
         "responses": {
-          "200": { "description": "Telemetry data updated" },
-          "404": { "description": "Telemetry data not found" }
+          "200": {
+            "description": "Telemetry updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TelemetryResponse" }
+              }
+            }
+          },
+          "401": { "description": "Missing/invalid token" },
+          "403": { "description": "Insufficient permissions / Quarter constraint" },
+          "404": { "description": "Not found" }
         }
       },
       "delete": {
-        "summary": "Delete telemetry data",
+        "summary": "Delete a telemetry record by ID",
+        "description": "Requires role **admin**. Deletes to pre-current-quarter records are blocked.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
         ],
         "responses": {
-          "200": { "description": "Telemetry data deleted" },
-          "404": { "description": "Telemetry data not found" }
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                "example": { "msg": "Deleted" }
+              }
+            }
+          },
+          "401": { "description": "Missing/invalid token" },
+          "403": { "description": "Insufficient permissions / Quarter constraint" },
+          "404": { "description": "Not found" }
         }
       }
     },
     "/telemetry/bulk": {
-      "post": {
-        "summary": "Bulk upload telemetry data",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": { "$ref": "#/components/schemas/Telemetry" }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Bulk telemetry data created" }
-        }
-      },
       "get": {
-        "summary": "Bulk get telemetry data",
+        "summary": "Bulk get telemetry records by IDs",
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "description": "Repeat this parameter for multiple IDs, e.g. ?ids=1&ids=2",
+            "schema": {
+              "type": "array",
+              "items": { "type": "integer" }
+            },
+            "style": "form",
+            "explode": true
+          }
+        ],
         "responses": {
           "200": {
-            "description": "List of telemetry data",
+            "description": "Telemetry records",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/Telemetry" }
-                }
+                "schema": { "$ref": "#/components/schemas/BulkTelemetryResponse" }
               }
             }
-          }
+          },
+          "400": { "description": "Invalid/missing IDs" },
+          "401": { "description": "Missing/invalid token" }
         }
       },
       "put": {
-        "summary": "Bulk update telemetry data",
+        "summary": "Bulk update telemetry records",
+        "description": "Requires role **admin**. Edits to pre-current-quarter records are blocked.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -166,55 +214,173 @@
             "application/json": {
               "schema": {
                 "type": "array",
-                "items": { "$ref": "#/components/schemas/Telemetry" }
-              }
+                "items": { "$ref": "#/components/schemas/TelemetryBulkUpdateItem" }
+              },
+              "example": [
+                { "id": 10, "salinity": 31.2, "location": "Bay A" },
+                { "id": 12, "temperature": 24.1, "pollutants": "oil" }
+              ]
             }
           }
         },
         "responses": {
-          "200": { "description": "Bulk telemetry data updated" }
+          "200": {
+            "description": "Bulk update successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                "example": { "msg": "Bulk update successful" }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Missing/invalid token" },
+          "403": { "description": "Insufficient permissions / Quarter constraint" },
+          "404": { "description": "One or more records not found" }
         }
       },
       "delete": {
-        "summary": "Bulk delete telemetry data",
+        "summary": "Bulk delete telemetry records",
+        "description": "Requires role **admin**. Deletes to pre-current-quarter records are blocked.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "id": { "type": "integer" }
-                  },
-                  "required": ["id"]
-                }
-              }
+              "schema": { "$ref": "#/components/schemas/BulkDeleteRequest" },
+              "example": { "ids": [3, 4, 5] }
             }
           }
         },
         "responses": {
-          "200": { "description": "Bulk telemetry data deleted" }
+          "200": {
+            "description": "Bulk delete successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                "example": { "msg": "Bulk delete successful" }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Missing/invalid token" },
+          "403": { "description": "Insufficient permissions / Quarter constraint" }
         }
       }
     }
   },
   "components": {
     "schemas": {
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "researcher", "consumer", "user"],
+            "default": "user"
+          }
+        },
+        "required": ["username", "password", "email"]
+      },
+      "AuthLoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" }
+        },
+        "required": ["username", "password"]
+      },
+      "AuthTokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" }
+        }
+      },
       "Telemetry": {
         "type": "object",
         "properties": {
           "id": { "type": "integer" },
           "buoy_id": { "type": "integer" },
-          "salinity": { "type": "string" },
-          "temperature": { "type": "string" },
-          "pH": { "type": "string" },
-          "pollution_level": { "type": "string" },
-          "dissolved_oxygen": { "type": "string" },
-          "location": { "type": "string" },
+          "salinity": { "type": "number", "format": "float" },
+          "temperature": { "type": "number", "format": "float" },
+          "pH": { "type": "number", "format": "float" },
+          "pollutants": { "type": "string", "nullable": true },
+          "location": { "type": "string", "nullable": true },
           "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TelemetryCreate": {
+        "type": "object",
+        "properties": {
+          "buoy_id": { "type": "integer" },
+          "salinity": { "type": "number", "format": "float" },
+          "pH": { "type": "number", "format": "float" },
+          "temperature": { "type": "number", "format": "float" },
+          "pollutants": { "type": "string" },
+          "location": { "type": "string" }
+        },
+        "required": ["buoy_id", "salinity", "pH"]
+      },
+      "TelemetryUpdate": {
+        "type": "object",
+        "properties": {
+          "buoy_id": { "type": "integer" },
+          "salinity": { "type": "number", "format": "float" },
+          "temperature": { "type": "number", "format": "float" },
+          "pH": { "type": "number", "format": "float" },
+          "pollutants": { "type": "string" },
+          "location": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "TelemetryBulkUpdateItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "buoy_id": { "type": "integer" },
+          "salinity": { "type": "number", "format": "float" },
+          "temperature": { "type": "number", "format": "float" },
+          "pH": { "type": "number", "format": "float" },
+          "pollutants": { "type": "string" },
+          "location": { "type": "string" }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      },
+      "BulkDeleteRequest": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 1
+          }
+        },
+        "required": ["ids"]
+      },
+      "TelemetryResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "data": { "$ref": "#/components/schemas/Telemetry" }
+        }
+      },
+      "BulkTelemetryResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Telemetry" }
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "msg": { "type": "string" }
         }
       }
     },
